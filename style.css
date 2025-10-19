@@ -1,39 +1,49 @@
+/* General panel styling */
 .story-timeline {
   position: fixed;
   right: 20px;
   top: 80px;
-  width: 300px;
+  width: 320px;
   max-height: 70%;
   overflow: auto;
-  background: white;
-  border: 1px solid #ccc;
+  background: var(--background, #fff);
+  color: var(--text-color, #000);
+  border: 1px solid var(--border-color, #ccc);
   padding: 10px;
   z-index: 999;
 }
 
-.story-timeline ul {
-  list-style: none;
-  margin: 0;
-  padding: 0;
+/* Button removed (we now use menu item) */
+
+/* Settings panel */
+.story-timeline-settings {
+  position: fixed;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  background: var(--background, #fff);
+  color: var(--text-color, #000);
+  border: 1px solid var(--border-color, #ccc);
+  padding: 20px;
+  z-index: 10000;
+  max-width: 400px;
 }
 
-.story-timeline ul li {
-  margin: 5px 0;
+/* Tagger panel */
+.story-timeline-tagger {
+  position: fixed;
+  left: 50%;
+  top: 60%;
+  transform: translate(-50%, -60%);
+  background: var(--background, #fff);
+  border: 1px solid var(--border-color, #ccc);
+  padding: 20px;
+  max-height: 60%;
+  overflow: auto;
+  z-index: 10000;
 }
 
-#story-timeline-button {
-  padding: 8px 12px;
-  background: #007bff;
-  color: white;
-  border: none;
-  border-radius: 4px;
-  cursor: pointer;
-}
-
-#story-timeline-button:hover {
-  background: #0056b3;
-}
-
+/* Draggable list styling */
 .story-timeline-draggable {
   list-style: none;
   padding: 0;
