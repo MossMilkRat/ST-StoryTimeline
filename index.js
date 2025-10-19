@@ -1,5 +1,6 @@
 // index.js
 
+// Acquire SillyTavern context
 const ctx = (typeof window !== "undefined" && window.SillyTavern && typeof window.SillyTavern.getContext === "function")
   ? window.SillyTavern.getContext()
   : null;
@@ -22,7 +23,18 @@ if (!ctx) {
     return extensionSettings[MODULE_KEY];
   }
 
-  import { parseTimeString } from "./utils/parser.js";
+  // Simple parse utility (you can expand this)
+  function parseTimeString(str, dateFormat, timeFormat) {
+    const mDay = str.match(/day\s*(\d+),\s*(\d+):(\d+)/i);
+    if (mDay) {
+      const dayNum = parseInt(mDay[1], 10);
+      const h = parseInt(mDay[2], 10);
+      const min = parseInt(mDay[3], 10);
+      return dayNum * 24 * 60 + h * 60 + min;
+    }
+    // Additional parsing logic could go here (mm/dd/yyyy etc)
+    return null;
+  }
 
   function parseStoryTime(msg) {
     const meta = msg.metadata || {};
@@ -62,7 +74,7 @@ if (!ctx) {
     return timeline;
   }
 
-  // Draggable list UI (snippet)
+  // Draggable list UI
   function makeDraggableList(items, onReorder) {
     const list = document.createElement('ul');
     list.className = 'story-timeline-draggable';
@@ -97,7 +109,7 @@ if (!ctx) {
 
     function handleDrop(e) {
       if (e.stopPropagation) e.stopPropagation();
-      if (dragSrcEl !== this) {
+      if (dragSrcEl && dragSrcEl !== this) {
         const tmp = this.innerHTML;
         this.innerHTML = dragSrcEl.innerHTML;
         dragSrcEl.innerHTML = tmp;
@@ -115,8 +127,7 @@ if (!ctx) {
       });
     }
 
-    const lis = list.querySelectorAll('li');
-    lis.forEach(li => {
+    list.querySelectorAll('li').forEach(li => {
       li.addEventListener('dragstart', handleDragStart);
       li.addEventListener('dragover', handleDragOver);
       li.addEventListener('dragleave', handleDragLeave);
@@ -146,14 +157,15 @@ if (!ctx) {
         if (!msg.metadata) msg.metadata = {};
         msg.metadata.storyOrder = newPos;
       });
-      ctx.saveMetadata?.();
+      if (typeof ctx.saveMetadata === "function") {
+        ctx.saveMetadata(); 
+      }
     });
 
     container.appendChild(list);
     document.body.appendChild(container);
   }
 
-  // Simple view
   function showSimpleTimeline() {
     const old = document.getElementById('story-timeline-panel');
     if (old) old.remove();
@@ -173,7 +185,7 @@ if (!ctx) {
     document.body.appendChild(container);
   }
 
-  // Tagger for un-tagged messages
+  // Tagger UI for un-tagged messages
   function findUnTaggedMessages() {
     const chat = ctx.chat || [];
     return chat.map((msg, idx) => ({ msg, idx }))
@@ -249,7 +261,7 @@ if (!ctx) {
           <option value="ampm" ${settings.timeFormat==="ampm"?"selected":""}>AM/PM</option>
         </select>
       </label><br/><br/>
-      <label><input type="checkbox" id="st-dragdrop" ${settings.dragDropEnabled?"checked":""}/> Enable drag/drop reorder</label><br/><br/>
+      <label><input type="checkbox" id="st-dragdrop" ${settings.dragDropEnabled ? "checked": ""}/> Enable drag/drop reorder</label><br/><br/>
       <button id="st-save">Save Settings</button>
       <button id="st-tagMessages">Tag un-tagged messages</button>
     `;
@@ -272,28 +284,36 @@ if (!ctx) {
   }
 
   function registerMenu() {
-    ctx.registerMenuItem?.({
-      id: "story-timeline-settings",
-      title: "Story Timeline Settings",
-      onClick: showSettingsPanel
-    });
+    const checkMenu = setInterval(() => {
+      if (window.getExtensionMenu) {
+        clearInterval(checkMenu);
+        window.getExtensionMenu().addMenuItem({
+          name: "Story Timeline Viewer",
+          description: "View & configure story timeline",
+          icon: "🕓",
+          action: showSettingsPanel
+        });
+        console.log("Story Timeline Viewer: menu registered");
+      }
+    }, 1000);
   }
 
   function init() {
     const settings = getSettings();
     if (!settings.enabled) return;
+
     registerMenu();
     if (ctx.events && typeof ctx.events.on === "function") {
       ctx.events.on("CHAT_CHANGED", () => {
-        const settings2 = getSettings();
-        if (settings2.dragDropEnabled) {
+        const s = getSettings();
+        if (s.dragDropEnabled) {
           showDraggableTimeline();
         } else {
           showSimpleTimeline();
         }
       });
     } else {
-      console.warn("Story Timeline: ctx.events.on not available");
+      console.warn("Story Timeline Viewer: ctx.events.on not available");
     }
   }
 
