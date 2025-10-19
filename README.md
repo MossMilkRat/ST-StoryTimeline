@@ -1,22 +1,16 @@
-# Story Timeline Viewer (Extension for SillyTavern)
+# Story Timeline Viewer
 
-**Version:** 0.1.0  
+**Version:** 0.2.1  
 **Author:** MossMilkRat
 
-## What it does  
-This extension adds a “Story Timeline” view to SillyTavern, which allows you to sort chat messages by *story time* (rather than post time).  
-You can tag messages with metadata `storyTime` (numeric or string) and the extension builds a sidebar timeline of those events.
+## Description  
+This extension for SillyTavern lets you view a timeline of story-events in chat, sorted by "story time" rather than posting time. You can tag messages with story times, reorder via drag-and-drop, and open settings via a slash command.
 
 ## Installation  
-1. Clone or download this repository.  
-2. Copy the folder into your SillyTavern extensions directory (e.g., `/scripts/extensions/`).  
-3. In SillyTavern → Extensions panel → “Install extension” → select this folder.  
-4. Enable the extension.  
-5. Relaunch SillyTavern if necessary.
+1. Go to _Extensions → Install extension_ in SillyTavern.  
+2. Enter the GitHub URL of this repo.  
+3. Enable the extension and reload if necessary.
 
 ## Usage  
-- For a message, add metadata:
-  ```json
-  {
-    "storyTime": 10.5
-  }
+- To open the **Settings Panel**, type the slash command:  
+/storytimeline
