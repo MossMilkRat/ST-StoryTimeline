@@ -20,7 +20,8 @@ if (!ctx) {
         dragDropEnabled: false,
         showMenuIcon: true,
         menuIcon: "🕓",
-        shortcut: "Ctrl+Shift+T"  // new default shortcut
+        shortcut: "",                  // optional keyboard shortcut (empty by default)
+        slashCommand: "storytimeline"  // the slash command name
       };
     }
     return extensionSettings[MODULE_KEY];
@@ -34,7 +35,7 @@ if (!ctx) {
       const min = parseInt(mDay[3], 10);
       return dayNum * 24 * 60 + h * 60 + min;
     }
-    // Additional parsing logic for other formats could go here
+    // Additional parsing logic for other formats could be added here
     return null;
   }
 
@@ -80,7 +81,7 @@ if (!ctx) {
       const li = document.createElement('li');
       li.draggable = true;
       li.dataset.idx = item.idx;
-      li.innerHTML = `<strong>${item.storyTime}:</strong> ${item.excerpt.substring(0,50)}...`;
+      li.innerHTML = `<strong>${item.storyTime}:</strong> ${item.excerpt.substring(0,50)}…`;
       list.appendChild(li);
     });
 
@@ -168,7 +169,7 @@ if (!ctx) {
     const timeline = buildTimeline();
     let html = `<h3>Story Timeline</h3><ul>`;
     timeline.forEach(item => {
-      html += `<li><strong>${item.storyTime}:</strong> ${item.excerpt.substring(0,50)}... (msg #${item.idx})</li>`;
+      html += `<li><strong>${item.storyTime}:</strong> ${item.excerpt.substring(0,50)}… (msg #${item.idx})</li>`;
     });
     html += `</ul>`;
     container.innerHTML = html;
@@ -190,6 +191,7 @@ if (!ctx) {
       console.log("StoryTimeline: No un-tagged messages found");
       return;
     }
+
     const containerId = "story-timeline-tagger";
     let container = document.getElementById(containerId);
     if (container) container.remove();
@@ -248,12 +250,12 @@ if (!ctx) {
         </select>
       </label><br/><br/>
       <label><input type="checkbox" id="st-dragdrop" ${settings.dragDropEnabled?"checked":""}/> Enable drag/drop reorder</label><br/><br/>
-      <label><input type="checkbox" id="st-showicon" ${settings.showMenuIcon ? "checked": ""}/> Show icon in menu</label><br/><br/>
+      <label><input type="checkbox" id="st-showicon" ${settings.showMenuIcon?"checked":""}/> Show icon in menu</label><br/><br/>
       <label>Menu icon (emoji or URL):<br/>
         <input type="text" id="st-menuicon" value="${settings.menuIcon}" placeholder="🕓 or https://...png"/>
       </label><br/><br/>
-      <label>Shortcut to open settings:<br/>
-        <input type="text" id="st-shortcut" value="${settings.shortcut}" placeholder="Ctrl+Shift+T"/>
+      <label>Slash command (type this in chat):<br/>
+        <input type="text" id="st-slashcmd" value="${settings.slashCommand}" placeholder="storytimeline"/>
       </label><br/><br/>
       <button id="st-save">Save Settings</button>
       <button id="st-tagMessages">Tag un-tagged messages</button>
@@ -268,10 +270,10 @@ if (!ctx) {
       settings.showMenuIcon = document.getElementById("st-showicon").checked;
       const iconVal = document.getElementById("st-menuicon").value.trim();
       if (iconVal) settings.menuIcon = iconVal;
-      const sc = document.getElementById("st-shortcut").value.trim();
-      if (sc) settings.shortcut = sc;
+      const sc = document.getElementById("st-slashcmd").value.trim();
+      if (sc) settings.slashCommand = sc;
       console.log("StoryTimeline settings saved:", settings);
-      alert("Settings saved. Please reopen the timeline menu or use the shortcut.");
+      alert("Settings saved. You can now type `/"+ settings.slashCommand +"` in chat.");
       container.remove();
     });
 
@@ -315,27 +317,37 @@ if (!ctx) {
     }, 1000);
   }
 
-  // Shortcut listener
-  document.addEventListener('keydown', event => {
-    const settings = getSettings();
-    if (!settings.enabled) return;
-    // parse simple shortcut e.g. "Ctrl+Shift+T"
-    const parts = settings.shortcut.split('+').map(s => s.trim().toLowerCase());
-    const ctrlOk = parts.includes('ctrl') ? event.ctrlKey : true;
-    const shiftOk = parts.includes('shift') ? event.shiftKey : true;
-    const altOk = parts.includes('alt') ? event.altKey : true;
-    const keyOk = parts.includes(event.key.toLowerCase());
-    if (ctrlOk && shiftOk && altOk && keyOk) {
-      event.preventDefault();
-      showSettingsPanel();
+  // Register slash command
+  function registerSlashCommand() {
+    try {
+      const settings = getSettings();
+      const cmdName = settings.slashCommand;
+      if (cmdName && typeof ctx.SlashCommandParser !== "undefined") {
+        ctx.SlashCommandParser.addCommandObject(
+          ctx.SlashCommand.fromProps({
+            name: cmdName,
+            description: "Open the Story Timeline Viewer settings panel",
+            callback: () => {
+              showSettingsPanel();
+              return `Story Timeline Viewer settings opened.`;
+            },
+            aliases: [],
+            returns: "confirmation"
+          })
+        );
+        console.log(`Story Timeline Viewer: slash command '/${cmdName}' registered`);
+      }
+    } catch (err) {
+      console.warn("Story Timeline Viewer: failed to register slash command", err);
     }
-  });
+  }
 
   function init() {
     const settings = getSettings();
     if (!settings.enabled) return;
     registerMenu();
     manualMenuFallback();
+    registerSlashCommand();
     if (ctx.events && typeof ctx.events.on === "function") {
       ctx.events.on("CHAT_CHANGED", () => {
         const s = getSettings();
