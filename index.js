@@ -17,13 +17,14 @@ if (!ctx) {
         enabled: true,
         dateFormat: "mm/dd/yyyy",
         timeFormat: "24h",
-        dragDropEnabled: false
+        dragDropEnabled: false,
+        showMenuIcon: true,
+        menuIcon: "🕓"
       };
     }
     return extensionSettings[MODULE_KEY];
   }
 
-  // Simple parse utility (you can expand this)
   function parseTimeString(str, dateFormat, timeFormat) {
     const mDay = str.match(/day\s*(\d+),\s*(\d+):(\d+)/i);
     if (mDay) {
@@ -32,7 +33,7 @@ if (!ctx) {
       const min = parseInt(mDay[3], 10);
       return dayNum * 24 * 60 + h * 60 + min;
     }
-    // Additional parsing logic could go here (mm/dd/yyyy etc)
+    // Additional parsing logic for other formats could go here
     return null;
   }
 
@@ -74,7 +75,6 @@ if (!ctx) {
     return timeline;
   }
 
-  // Draggable list UI
   function makeDraggableList(items, onReorder) {
     const list = document.createElement('ul');
     list.className = 'story-timeline-draggable';
@@ -158,7 +158,7 @@ if (!ctx) {
         msg.metadata.storyOrder = newPos;
       });
       if (typeof ctx.saveMetadata === "function") {
-        ctx.saveMetadata(); 
+        ctx.saveMetadata();
       }
     });
 
@@ -185,7 +185,6 @@ if (!ctx) {
     document.body.appendChild(container);
   }
 
-  // Tagger UI for un-tagged messages
   function findUnTaggedMessages() {
     const chat = ctx.chat || [];
     return chat.map((msg, idx) => ({ msg, idx }))
@@ -261,7 +260,11 @@ if (!ctx) {
           <option value="ampm" ${settings.timeFormat==="ampm"?"selected":""}>AM/PM</option>
         </select>
       </label><br/><br/>
-      <label><input type="checkbox" id="st-dragdrop" ${settings.dragDropEnabled ? "checked": ""}/> Enable drag/drop reorder</label><br/><br/>
+      <label><input type="checkbox" id="st-dragdrop" ${settings.dragDropEnabled?"checked":""}/> Enable drag/drop reorder</label><br/><br/>
+      <label><input type="checkbox" id="st-showicon" ${settings.showMenuIcon ? "checked": ""}/> Show icon in menu</label><br/><br/>
+      <label>Menu icon (emoji or URL):<br/>
+        <input type="text" id="st-menuicon" value="${settings.menuIcon}" placeholder="🕓 or https://...png"/>
+      </label><br/><br/>
       <button id="st-save">Save Settings</button>
       <button id="st-tagMessages">Tag un-tagged messages</button>
     `;
@@ -273,8 +276,11 @@ if (!ctx) {
       settings.dateFormat = document.getElementById("st-dateformat").value;
       settings.timeFormat = document.getElementById("st-timeformat").value;
       settings.dragDropEnabled = document.getElementById("st-dragdrop").checked;
+      settings.showMenuIcon = document.getElementById("st-showicon").checked;
+      const iconVal = document.getElementById("st-menuicon").value.trim();
+      if (iconVal) settings.menuIcon = iconVal;
       console.log("StoryTimeline settings saved:", settings);
-      alert("Settings saved. Please reopen the timeline.");
+      alert("Settings saved. Please reopen the timeline menu.");
       container.remove();
     });
 
@@ -287,13 +293,17 @@ if (!ctx) {
     const checkMenu = setInterval(() => {
       if (window.getExtensionMenu) {
         clearInterval(checkMenu);
-        window.getExtensionMenu().addMenuItem({
+        const settings = getSettings();
+        const menuParams = {
           name: "Story Timeline Viewer",
           description: "View & configure story timeline",
-          icon: "🕓",
           action: showSettingsPanel
-        });
-        console.log("Story Timeline Viewer: menu registered");
+        };
+        if (settings.showMenuIcon && settings.menuIcon) {
+          menuParams.icon = settings.menuIcon;
+        }
+        window.getExtensionMenu().addMenuItem(menuParams);
+        console.log("Story Timeline Viewer: menu registered with icon:", menuParams.icon);
       }
     }, 1000);
   }
@@ -301,7 +311,6 @@ if (!ctx) {
   function init() {
     const settings = getSettings();
     if (!settings.enabled) return;
-
     registerMenu();
     if (ctx.events && typeof ctx.events.on === "function") {
       ctx.events.on("CHAT_CHANGED", () => {
