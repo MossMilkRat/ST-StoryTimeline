@@ -1,4 +1,4 @@
-import { getContext } from "../../extensions.js";
+const context = SillyTavern.getContext();
 
 const MODULE_KEY = "storyTimeline";
 
