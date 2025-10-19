@@ -33,3 +33,22 @@
 #story-timeline-button:hover {
   background: #0056b3;
 }
+
+.story-timeline-draggable {
+  list-style: none;
+  padding: 0;
+  margin: 10px 0;
+}
+.story-timeline-draggable li {
+  padding: 8px;
+  margin: 4px 0;
+  background: var(--background-alt, #f7f7f7);
+  border: 1px solid var(--border-color, #ccc);
+  cursor: move;
+}
+.story-timeline-draggable li.dragging {
+  opacity: 0.5;
+}
+.story-timeline-draggable li.over {
+  border: 2px dashed var(--accent-color, #007bff);
+}
