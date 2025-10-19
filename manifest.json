@@ -6,5 +6,5 @@
   "author": "MossMilkRat",
   "version": "0.2.0",
   "minimum_client_version": "1.0.0",
-  "description": "Timeline view for story-events in chats, sorted by story time, with drag/drop reorder and flexible formats."
+  "description": "Timeline view for story events in chats, sorted by story time, with settings and drag-drop reorder."
 }
