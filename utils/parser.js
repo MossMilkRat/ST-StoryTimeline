@@ -7,7 +7,6 @@ export function parseTimeString(str, dateFormat = "mm/dd/yyyy", timeFormat = "24
     const min = parseInt(mDay[3], 10);
     return dayNum * 24 * 60 + h * 60 + min;
   }
-  // add further parsing for mm/dd/yyyy + optional time etc.
-  // this is a simplified version; you can expand with more formats
+  // Additional parsing logic could go here: mm/dd/yyyy etc
   return null;
 }
