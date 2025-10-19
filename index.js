@@ -1,6 +1,5 @@
 // index.js
 
-// Acquire SillyTavern context
 const ctx = (typeof window !== "undefined" && window.SillyTavern && typeof window.SillyTavern.getContext === "function")
   ? window.SillyTavern.getContext()
   : null;
@@ -38,7 +37,7 @@ if (!ctx) {
       }
     }
     if (meta.storyOrder != null) {
-      return meta.storyOrder; // fallback ordering by storyOrder if provided
+      return meta.storyOrder;
     }
     return null;
   }
@@ -63,33 +62,166 @@ if (!ctx) {
     return timeline;
   }
 
-  function showTimeline() {
-    const settings = getSettings();
-    if (!settings.enabled) return;
+  // Draggable list UI (snippet)
+  function makeDraggableList(items, onReorder) {
+    const list = document.createElement('ul');
+    list.className = 'story-timeline-draggable';
 
-    if (settings.dragDropEnabled) {
-      showDraggableTimeline();
-    } else {
-      // simple list view
-      const old = document.getElementById('story-timeline-panel');
-      if (old) old.remove();
+    items.forEach(item => {
+      const li = document.createElement('li');
+      li.draggable = true;
+      li.dataset.idx = item.idx;
+      li.innerHTML = `<strong>${item.storyTime}:</strong> ${item.excerpt.substring(0,50)}...`;
+      list.appendChild(li);
+    });
 
-      const container = document.createElement('div');
-      container.id = 'story-timeline-panel';
-      container.className = 'story-timeline';
+    let dragSrcEl = null;
 
-      const timeline = buildTimeline();
-      let html = `<h3>Story Timeline</h3><ul>`;
-      timeline.forEach(item => {
-        html += `<li><strong>${item.storyTime}:</strong> ${item.excerpt.substring(0,50)}... (msg #${item.idx})</li>`;
-      });
-      html += `</ul>`;
-      container.innerHTML = html;
-      document.body.appendChild(container);
+    function handleDragStart(e) {
+      dragSrcEl = this;
+      e.dataTransfer.effectAllowed = 'move';
+      e.dataTransfer.setData('text/html', this.innerHTML);
+      this.classList.add('dragging');
     }
+
+    function handleDragOver(e) {
+      if (e.preventDefault) e.preventDefault();
+      this.classList.add('over');
+      e.dataTransfer.dropEffect = 'move';
+      return false;
+    }
+
+    function handleDragLeave(e) {
+      this.classList.remove('over');
+    }
+
+    function handleDrop(e) {
+      if (e.stopPropagation) e.stopPropagation();
+      if (dragSrcEl !== this) {
+        const tmp = this.innerHTML;
+        this.innerHTML = dragSrcEl.innerHTML;
+        dragSrcEl.innerHTML = tmp;
+
+        const newOrder = Array.from(list.querySelectorAll('li')).map(li => parseInt(li.dataset.idx,10));
+        onReorder(newOrder);
+      }
+      return false;
+    }
+
+    function handleDragEnd(e) {
+      list.querySelectorAll('li').forEach(li => {
+        li.classList.remove('over');
+        li.classList.remove('dragging');
+      });
+    }
+
+    const lis = list.querySelectorAll('li');
+    lis.forEach(li => {
+      li.addEventListener('dragstart', handleDragStart);
+      li.addEventListener('dragover', handleDragOver);
+      li.addEventListener('dragleave', handleDragLeave);
+      li.addEventListener('drop', handleDrop);
+      li.addEventListener('dragend', handleDragEnd);
+    });
+
+    return list;
   }
 
-  // Include previously defined showDraggableTimeline, makeDraggableList etc here
+  function showDraggableTimeline() {
+    const timeline = buildTimeline();
+    const old = document.getElementById('story-timeline-panel');
+    if (old) old.remove();
+
+    const container = document.createElement('div');
+    container.id = 'story-timeline-panel';
+    container.className = 'story-timeline';
+
+    const title = document.createElement('h3');
+    title.textContent = 'Story Timeline (Drag & Drop)';
+    container.appendChild(title);
+
+    const list = makeDraggableList(timeline, newOrder => {
+      newOrder.forEach((msgIdx, newPos) => {
+        const msg = ctx.chat[msgIdx];
+        if (!msg.metadata) msg.metadata = {};
+        msg.metadata.storyOrder = newPos;
+      });
+      ctx.saveMetadata?.();
+    });
+
+    container.appendChild(list);
+    document.body.appendChild(container);
+  }
+
+  // Simple view
+  function showSimpleTimeline() {
+    const old = document.getElementById('story-timeline-panel');
+    if (old) old.remove();
+
+    const container = document.createElement('div');
+    container.id = 'story-timeline-panel';
+    container.className = 'story-timeline';
+
+    const timeline = buildTimeline();
+    let html = `<h3>Story Timeline</h3><ul>`;
+    timeline.forEach(item => {
+      html += `<li><strong>${item.storyTime}:</strong> ${item.excerpt.substring(0,50)}... (msg #${item.idx})</li>`;
+    });
+    html += `</ul>`;
+
+    container.innerHTML = html;
+    document.body.appendChild(container);
+  }
+
+  // Tagger for un-tagged messages
+  function findUnTaggedMessages() {
+    const chat = ctx.chat || [];
+    return chat.map((msg, idx) => ({ msg, idx }))
+               .filter(({ msg }) => {
+                 const meta = msg.metadata || {};
+                 return meta.storyTime === undefined || meta.storyTime === null;
+               });
+  }
+
+  function promptTagMessages() {
+    const unTagged = findUnTaggedMessages();
+    if (unTagged.length === 0) {
+      console.log("StoryTimeline: No un-tagged messages found");
+      return;
+    }
+
+    const containerId = "story-timeline-tagger";
+    let container = document.getElementById(containerId);
+    if (container) container.remove();
+
+    container = document.createElement("div");
+    container.id = containerId;
+    container.className = "story-timeline-tagger";
+
+    let html = `<h3>Tag Story Time for Messages</h3><ul>`;
+    unTagged.forEach(({ msg, idx }) => {
+      html += `<li>Msg #${idx}: ${msg.message.substring(0,50)}… 
+        <input type="text" data-idx="${idx}" placeholder="Enter story time (e.g. Day 1, 08:30)" /></li>`;
+    });
+    html += `</ul><button id="st-applyTags">Apply Tags</button>`;
+
+    container.innerHTML = html;
+    document.body.appendChild(container);
+
+    document.getElementById("st-applyTags").addEventListener("click", () => {
+      const inputs = container.querySelectorAll("input[data-idx]");
+      inputs.forEach(input => {
+        const idx = parseInt(input.getAttribute("data-idx"),10);
+        const value = input.value.trim();
+        const msg = ctx.chat[idx];
+        if (!msg.metadata) msg.metadata = {};
+        msg.metadata.storyTime = value;
+        console.log(`Tagged message #${idx} with storyTime=${value}`);
+      });
+      container.remove();
+      showSimpleTimeline();
+    });
+  }
 
   function showSettingsPanel() {
     const containerId = "story-timeline-settings";
@@ -104,7 +236,7 @@ if (!ctx) {
     container.innerHTML = `
       <h3>Story Timeline Viewer Settings</h3>
       <label><input type="checkbox" id="st-enable" ${settings.enabled ? "checked":""}/> Enable extension</label><br/><br/>
-      <label>Date format: 
+      <label>Date format:
         <select id="st-dateformat">
           <option value="mm/dd/yyyy" ${settings.dateFormat==="mm/dd/yyyy"?"selected":""}>MM/DD/YYYY</option>
           <option value="dd/mm/yyyy" ${settings.dateFormat==="dd/mm/yyyy"?"selected":""}>DD/MM/YYYY</option>
@@ -150,15 +282,18 @@ if (!ctx) {
   function init() {
     const settings = getSettings();
     if (!settings.enabled) return;
-
     registerMenu();
-    // Instead of floating button, rely on menu.
     if (ctx.events && typeof ctx.events.on === "function") {
       ctx.events.on("CHAT_CHANGED", () => {
-        showTimeline();
+        const settings2 = getSettings();
+        if (settings2.dragDropEnabled) {
+          showDraggableTimeline();
+        } else {
+          showSimpleTimeline();
+        }
       });
     } else {
-      console.warn("Story Timeline: events.on not available");
+      console.warn("Story Timeline: ctx.events.on not available");
     }
   }
 
