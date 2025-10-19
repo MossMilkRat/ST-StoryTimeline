@@ -13,8 +13,6 @@
   z-index: 999;
 }
 
-/* Button removed (we now use menu item) */
-
 /* Settings panel */
 .story-timeline-settings {
   position: fixed;
