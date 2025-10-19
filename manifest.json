@@ -1,0 +1,9 @@
+{
+  "display_name": "Story Timeline Viewer",
+  "loading_order": 100,
+  "js": "index.js",
+  "css": "style.css",
+  "author": "YourName",
+  "version": "0.1.0",
+  "minimum_client_version": "1.0.0"
+}
