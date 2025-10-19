@@ -1,7 +1,7 @@
 # Story Timeline Viewer (Extension for SillyTavern)
 
 **Version:** 0.1.0  
-**Author:** YourName
+**Author:** MossMilkRat
 
 ## What it does  
 This extension adds a “Story Timeline” view to SillyTavern, which allows you to sort chat messages by *story time* (rather than post time).  
