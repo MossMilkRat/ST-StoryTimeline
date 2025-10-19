@@ -19,7 +19,8 @@ if (!ctx) {
         timeFormat: "24h",
         dragDropEnabled: false,
         showMenuIcon: true,
-        menuIcon: "🕓"
+        menuIcon: "🕓",
+        shortcut: "Ctrl+Shift+T"  // new default shortcut
       };
     }
     return extensionSettings[MODULE_KEY];
@@ -75,7 +76,6 @@ if (!ctx) {
   function makeDraggableList(items, onReorder) {
     const list = document.createElement('ul');
     list.className = 'story-timeline-draggable';
-
     items.forEach(item => {
       const li = document.createElement('li');
       li.draggable = true;
@@ -119,8 +119,7 @@ if (!ctx) {
       });
     }
 
-    const lis = list.querySelectorAll('li');
-    lis.forEach(li => {
+    list.querySelectorAll('li').forEach(li => {
       li.addEventListener('dragstart', handleDragStart);
       li.addEventListener('dragover', handleDragOver);
       li.addEventListener('dragleave', handleDragLeave);
@@ -172,7 +171,6 @@ if (!ctx) {
       html += `<li><strong>${item.storyTime}:</strong> ${item.excerpt.substring(0,50)}... (msg #${item.idx})</li>`;
     });
     html += `</ul>`;
-
     container.innerHTML = html;
     document.body.appendChild(container);
   }
@@ -192,7 +190,6 @@ if (!ctx) {
       console.log("StoryTimeline: No un-tagged messages found");
       return;
     }
-
     const containerId = "story-timeline-tagger";
     let container = document.getElementById(containerId);
     if (container) container.remove();
@@ -255,6 +252,9 @@ if (!ctx) {
       <label>Menu icon (emoji or URL):<br/>
         <input type="text" id="st-menuicon" value="${settings.menuIcon}" placeholder="🕓 or https://...png"/>
       </label><br/><br/>
+      <label>Shortcut to open settings:<br/>
+        <input type="text" id="st-shortcut" value="${settings.shortcut}" placeholder="Ctrl+Shift+T"/>
+      </label><br/><br/>
       <button id="st-save">Save Settings</button>
       <button id="st-tagMessages">Tag un-tagged messages</button>
     `;
@@ -268,8 +268,10 @@ if (!ctx) {
       settings.showMenuIcon = document.getElementById("st-showicon").checked;
       const iconVal = document.getElementById("st-menuicon").value.trim();
       if (iconVal) settings.menuIcon = iconVal;
+      const sc = document.getElementById("st-shortcut").value.trim();
+      if (sc) settings.shortcut = sc;
       console.log("StoryTimeline settings saved:", settings);
-      alert("Settings saved. Please reopen the timeline menu.");
+      alert("Settings saved. Please reopen the timeline menu or use the shortcut.");
       container.remove();
     });
 
@@ -297,7 +299,6 @@ if (!ctx) {
     }, 1000);
   }
 
-  // Fallback manual register
   function manualMenuFallback() {
     const checkDOM = setInterval(() => {
       const menuList = document.querySelector('.extension-menu-list');
@@ -313,6 +314,22 @@ if (!ctx) {
       }
     }, 1000);
   }
+
+  // Shortcut listener
+  document.addEventListener('keydown', event => {
+    const settings = getSettings();
+    if (!settings.enabled) return;
+    // parse simple shortcut e.g. "Ctrl+Shift+T"
+    const parts = settings.shortcut.split('+').map(s => s.trim().toLowerCase());
+    const ctrlOk = parts.includes('ctrl') ? event.ctrlKey : true;
+    const shiftOk = parts.includes('shift') ? event.shiftKey : true;
+    const altOk = parts.includes('alt') ? event.altKey : true;
+    const keyOk = parts.includes(event.key.toLowerCase());
+    if (ctrlOk && shiftOk && altOk && keyOk) {
+      event.preventDefault();
+      showSettingsPanel();
+    }
+  });
 
   function init() {
     const settings = getSettings();
