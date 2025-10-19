@@ -58,20 +58,17 @@ if (!ctx) {
   function buildTimeline() {
     const chat = ctx.chat || [];
     const timeline = [];
-
     chat.forEach((msg, idx) => {
       const st = parseStoryTime(msg);
       if (st !== null) {
         timeline.push({ idx, storyTime: st, excerpt: msg.message });
       }
     });
-
     timeline.sort((a, b) => {
       if (a.storyTime < b.storyTime) return -1;
       if (a.storyTime > b.storyTime) return +1;
       return a.idx - b.idx;
     });
-
     return timeline;
   }
 
@@ -95,31 +92,26 @@ if (!ctx) {
       e.dataTransfer.setData('text/html', this.innerHTML);
       this.classList.add('dragging');
     }
-
     function handleDragOver(e) {
       if (e.preventDefault) e.preventDefault();
       this.classList.add('over');
       e.dataTransfer.dropEffect = 'move';
       return false;
     }
-
     function handleDragLeave(e) {
       this.classList.remove('over');
     }
-
     function handleDrop(e) {
       if (e.stopPropagation) e.stopPropagation();
       if (dragSrcEl && dragSrcEl !== this) {
         const tmp = this.innerHTML;
         this.innerHTML = dragSrcEl.innerHTML;
         dragSrcEl.innerHTML = tmp;
-
         const newOrder = Array.from(list.querySelectorAll('li')).map(li => parseInt(li.dataset.idx,10));
         onReorder(newOrder);
       }
       return false;
     }
-
     function handleDragEnd(e) {
       list.querySelectorAll('li').forEach(li => {
         li.classList.remove('over');
@@ -127,7 +119,8 @@ if (!ctx) {
       });
     }
 
-    list.querySelectorAll('li').forEach(li => {
+    const lis = list.querySelectorAll('li');
+    lis.forEach(li => {
       li.addEventListener('dragstart', handleDragStart);
       li.addEventListener('dragover', handleDragOver);
       li.addEventListener('dragleave', handleDragLeave);
@@ -161,7 +154,6 @@ if (!ctx) {
         ctx.saveMetadata();
       }
     });
-
     container.appendChild(list);
     document.body.appendChild(container);
   }
@@ -204,7 +196,6 @@ if (!ctx) {
     const containerId = "story-timeline-tagger";
     let container = document.getElementById(containerId);
     if (container) container.remove();
-
     container = document.createElement("div");
     container.id = containerId;
     container.className = "story-timeline-tagger";
@@ -215,7 +206,6 @@ if (!ctx) {
         <input type="text" data-idx="${idx}" placeholder="Enter story time (e.g. Day 1, 08:30)" /></li>`;
     });
     html += `</ul><button id="st-applyTags">Apply Tags</button>`;
-
     container.innerHTML = html;
     document.body.appendChild(container);
 
@@ -268,7 +258,6 @@ if (!ctx) {
       <button id="st-save">Save Settings</button>
       <button id="st-tagMessages">Tag un-tagged messages</button>
     `;
-
     document.body.appendChild(container);
 
     document.getElementById("st-save").addEventListener("click", () => {
@@ -308,10 +297,28 @@ if (!ctx) {
     }, 1000);
   }
 
+  // Fallback manual register
+  function manualMenuFallback() {
+    const checkDOM = setInterval(() => {
+      const menuList = document.querySelector('.extension-menu-list');
+      if (menuList) {
+        clearInterval(checkDOM);
+        const settings = getSettings();
+        const li = document.createElement('li');
+        li.style.cursor = 'pointer';
+        li.innerText = (settings.showMenuIcon && settings.menuIcon ? settings.menuIcon + " " : "") + "Story Timeline Viewer";
+        li.addEventListener('click', showSettingsPanel);
+        menuList.appendChild(li);
+        console.log("Story Timeline Viewer: manually added to Extensions menu (fallback)");
+      }
+    }, 1000);
+  }
+
   function init() {
     const settings = getSettings();
     if (!settings.enabled) return;
     registerMenu();
+    manualMenuFallback();
     if (ctx.events && typeof ctx.events.on === "function") {
       ctx.events.on("CHAT_CHANGED", () => {
         const s = getSettings();
