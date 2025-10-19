@@ -20,8 +20,8 @@ if (!ctx) {
         dragDropEnabled: false,
         showMenuIcon: true,
         menuIcon: "🕓",
-        shortcut: "",                  // optional keyboard shortcut (empty by default)
-        slashCommand: "storytimeline"  // the slash command name
+        shortcut: "",                 // optional keyboard shortcut (empty by default)
+        slashCommand: "storytimeline" // default slash command name
       };
     }
     return extensionSettings[MODULE_KEY];
@@ -35,7 +35,7 @@ if (!ctx) {
       const min = parseInt(mDay[3], 10);
       return dayNum * 24 * 60 + h * 60 + min;
     }
-    // Additional parsing logic for other formats could be added here
+    // Additional parsing logic could go here
     return null;
   }
 
@@ -188,7 +188,7 @@ if (!ctx) {
   function promptTagMessages() {
     const unTagged = findUnTaggedMessages();
     if (unTagged.length === 0) {
-      console.log("StoryTimeline: No un-tagged messages found");
+      console.log("Story Timeline Viewer: No un-tagged messages found");
       return;
     }
 
@@ -216,7 +216,7 @@ if (!ctx) {
         const msg = ctx.chat[idx];
         if (!msg.metadata) msg.metadata = {};
         msg.metadata.storyTime = value;
-        console.log(`Tagged message #${idx} with storyTime=${value}`);
+        console.log(`Story Timeline Viewer: Tagged message #${idx} with storyTime=${value}`);
       });
       container.remove();
       showSimpleTimeline();
@@ -272,7 +272,7 @@ if (!ctx) {
       if (iconVal) settings.menuIcon = iconVal;
       const sc = document.getElementById("st-slashcmd").value.trim();
       if (sc) settings.slashCommand = sc;
-      console.log("StoryTimeline settings saved:", settings);
+      console.log("Story Timeline Viewer: settings saved", settings);
       alert("Settings saved. You can now type `/"+ settings.slashCommand +"` in chat.");
       container.remove();
     });
@@ -317,17 +317,22 @@ if (!ctx) {
     }, 1000);
   }
 
-  // Register slash command
+  // Register slash command (with fallback)
   function registerSlashCommand() {
     try {
       const settings = getSettings();
       const cmdName = settings.slashCommand;
-      if (cmdName && typeof ctx.SlashCommandParser !== "undefined") {
+      if (!cmdName) {
+        console.warn("Story Timeline Viewer: slashCommand setting is empty");
+        return;
+      }
+
+      if (ctx.SlashCommandParser && typeof ctx.SlashCommandParser.addCommandObject === "function") {
         ctx.SlashCommandParser.addCommandObject(
           ctx.SlashCommand.fromProps({
             name: cmdName,
             description: "Open the Story Timeline Viewer settings panel",
-            callback: () => {
+            callback: (namedArgs, unnamedArgs) => {
               showSettingsPanel();
               return `Story Timeline Viewer settings opened.`;
             },
@@ -335,19 +340,33 @@ if (!ctx) {
             returns: "confirmation"
           })
         );
-        console.log(`Story Timeline Viewer: slash command '/${cmdName}' registered`);
+        console.log(`Story Timeline Viewer: slash command '/${cmdName}' registered (new API)`);
+      } else if (typeof ctx.registerSlashCommand === "function") {
+        // legacy fallback
+        ctx.registerSlashCommand(cmdName, () => {
+          showSettingsPanel();
+          return `Story Timeline Viewer settings opened.`;
+        });
+        console.log(`Story Timeline Viewer: slash command '/${cmdName}' registered (legacy API)`);
+      } else {
+        console.warn("Story Timeline Viewer: slash command registration failed — no supported API found");
       }
     } catch (err) {
-      console.warn("Story Timeline Viewer: failed to register slash command", err);
+      console.error("Story Timeline Viewer: failed to register slash command", err);
     }
   }
 
   function init() {
+    console.log("Story Timeline Viewer: init() called");
     const settings = getSettings();
-    if (!settings.enabled) return;
+    if (!settings.enabled) {
+      console.warn("Story Timeline Viewer: extension not enabled in settings");
+      return;
+    }
     registerMenu();
     manualMenuFallback();
     registerSlashCommand();
+
     if (ctx.events && typeof ctx.events.on === "function") {
       ctx.events.on("CHAT_CHANGED", () => {
         const s = getSettings();
@@ -360,11 +379,12 @@ if (!ctx) {
     } else {
       console.warn("Story Timeline Viewer: ctx.events.on not available");
     }
+
+    console.log("Story Timeline Viewer: loaded successfully");
   }
 
   try {
     init();
-    console.log("Story Timeline Viewer loaded successfully");
   } catch (err) {
     console.error("Story Timeline Viewer: initialization error", err);
   }
