@@ -1,6 +1,6 @@
 // index.js
 
-// Grab the ST context via its global API
+// Acquire SillyTavern context
 const ctx = (typeof window !== "undefined" && window.SillyTavern && typeof window.SillyTavern.getContext === "function")
   ? window.SillyTavern.getContext()
   : null;
@@ -13,35 +13,32 @@ if (!ctx) {
   function getSettings() {
     const { extensionSettings } = ctx;
     if (!extensionSettings[MODULE_KEY]) {
-      extensionSettings[MODULE_KEY] = { enabled: true };
+      extensionSettings[MODULE_KEY] = {
+        enabled: true,
+        dateFormat: "mm/dd/yyyy",
+        timeFormat: "24h",
+        dragDropEnabled: false
+      };
     }
     return extensionSettings[MODULE_KEY];
   }
 
-  // If you still want to parse string times
-  function parseTimeString(str) {
-    const m = str.match(/day\s*(\d+),\s*(\d+):(\d+)/i);
-    if (m) {
-      const day = parseInt(m[1], 10);
-      const h = parseInt(m[2], 10);
-      const min = parseInt(m[3], 10);
-      return day * 24 * 60 + h * 60 + min;
-    }
-    // fallback
-    return null;
-  }
+  import { parseTimeString } from "./utils/parser.js";
 
   function parseStoryTime(msg) {
     const meta = msg.metadata || {};
     if (meta.storyTime != null) {
       if (typeof meta.storyTime === "string") {
-        const parsed = parseTimeString(meta.storyTime);
-        if (parsed != null) return parsed;
+        const settings = getSettings();
+        const val = parseTimeString(meta.storyTime, settings.dateFormat, settings.timeFormat);
+        if (val != null) return val;
       }
-      // if numeric already
       if (typeof meta.storyTime === "number") {
         return meta.storyTime;
       }
+    }
+    if (meta.storyOrder != null) {
+      return meta.storyOrder; // fallback ordering by storyOrder if provided
     }
     return null;
   }
@@ -51,9 +48,9 @@ if (!ctx) {
     const timeline = [];
 
     chat.forEach((msg, idx) => {
-      const storyTime = parseStoryTime(msg);
-      if (storyTime !== null) {
-        timeline.push({ idx, storyTime, excerpt: msg.message });
+      const st = parseStoryTime(msg);
+      if (st !== null) {
+        timeline.push({ idx, storyTime: st, excerpt: msg.message });
       }
     });
 
@@ -66,55 +63,103 @@ if (!ctx) {
     return timeline;
   }
 
-  function showTimelineUI() {
+  function showTimeline() {
     const settings = getSettings();
     if (!settings.enabled) return;
 
-    const timeline = buildTimeline();
+    if (settings.dragDropEnabled) {
+      showDraggableTimeline();
+    } else {
+      // simple list view
+      const old = document.getElementById('story-timeline-panel');
+      if (old) old.remove();
 
-    const old = document.getElementById("story-timeline-panel");
-    if (old) old.remove();
+      const container = document.createElement('div');
+      container.id = 'story-timeline-panel';
+      container.className = 'story-timeline';
 
-    const container = document.createElement("div");
-    container.id = "story-timeline-panel";
-    container.className = "story-timeline";
-
-    let html = `<h3>Story Timeline</h3><ul>`;
-    timeline.forEach(item => {
-      html += `<li><strong>${item.storyTime}:</strong> ${item.excerpt.substring(0,50)}... (msg #${item.idx})</li>`;
-    });
-    html += `</ul>`;
-
-    container.innerHTML = html;
-    document.body.appendChild(container);
+      const timeline = buildTimeline();
+      let html = `<h3>Story Timeline</h3><ul>`;
+      timeline.forEach(item => {
+        html += `<li><strong>${item.storyTime}:</strong> ${item.excerpt.substring(0,50)}... (msg #${item.idx})</li>`;
+      });
+      html += `</ul>`;
+      container.innerHTML = html;
+      document.body.appendChild(container);
+    }
   }
 
-  function addButton() {
-    const btn = document.createElement("button");
-    btn.id = "story-timeline-button";
-    btn.textContent = "Show Story Timeline";
-    btn.style.position = "fixed";
-    btn.style.right = "20px";
-    btn.style.top = "20px";
-    btn.style.zIndex = 10000;
-    btn.onclick = showTimelineUI;
-    document.body.appendChild(btn);
+  // Include previously defined showDraggableTimeline, makeDraggableList etc here
+
+  function showSettingsPanel() {
+    const containerId = "story-timeline-settings";
+    let container = document.getElementById(containerId);
+    if (container) container.remove();
+    container = document.createElement("div");
+    container.id = containerId;
+    container.className = "story-timeline-settings";
+
+    const settings = getSettings();
+
+    container.innerHTML = `
+      <h3>Story Timeline Viewer Settings</h3>
+      <label><input type="checkbox" id="st-enable" ${settings.enabled ? "checked":""}/> Enable extension</label><br/><br/>
+      <label>Date format: 
+        <select id="st-dateformat">
+          <option value="mm/dd/yyyy" ${settings.dateFormat==="mm/dd/yyyy"?"selected":""}>MM/DD/YYYY</option>
+          <option value="dd/mm/yyyy" ${settings.dateFormat==="dd/mm/yyyy"?"selected":""}>DD/MM/YYYY</option>
+          <option value="day-num" ${settings.dateFormat==="day-num"?"selected":""}>Day 1, Day 2…</option>
+        </select>
+      </label><br/><br/>
+      <label>Time format:
+        <select id="st-timeformat">
+          <option value="24h" ${settings.timeFormat==="24h"?"selected":""}>24-hour</option>
+          <option value="ampm" ${settings.timeFormat==="ampm"?"selected":""}>AM/PM</option>
+        </select>
+      </label><br/><br/>
+      <label><input type="checkbox" id="st-dragdrop" ${settings.dragDropEnabled?"checked":""}/> Enable drag/drop reorder</label><br/><br/>
+      <button id="st-save">Save Settings</button>
+      <button id="st-tagMessages">Tag un-tagged messages</button>
+    `;
+
+    document.body.appendChild(container);
+
+    document.getElementById("st-save").addEventListener("click", () => {
+      settings.enabled = document.getElementById("st-enable").checked;
+      settings.dateFormat = document.getElementById("st-dateformat").value;
+      settings.timeFormat = document.getElementById("st-timeformat").value;
+      settings.dragDropEnabled = document.getElementById("st-dragdrop").checked;
+      console.log("StoryTimeline settings saved:", settings);
+      alert("Settings saved. Please reopen the timeline.");
+      container.remove();
+    });
+
+    document.getElementById("st-tagMessages").addEventListener("click", () => {
+      promptTagMessages();
+    });
+  }
+
+  function registerMenu() {
+    ctx.registerMenuItem?.({
+      id: "story-timeline-settings",
+      title: "Story Timeline Settings",
+      onClick: showSettingsPanel
+    });
   }
 
   function init() {
     const settings = getSettings();
     if (!settings.enabled) return;
 
-    // Safe bind when chat changes
+    registerMenu();
+    // Instead of floating button, rely on menu.
     if (ctx.events && typeof ctx.events.on === "function") {
       ctx.events.on("CHAT_CHANGED", () => {
-        showTimelineUI();
+        showTimeline();
       });
     } else {
-      console.warn("Story Timeline Viewer: ctx.events.on not available, cannot auto‐refresh timeline");
+      console.warn("Story Timeline: events.on not available");
     }
-
-    addButton();
   }
 
   try {
