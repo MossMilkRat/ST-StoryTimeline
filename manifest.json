@@ -3,7 +3,7 @@
   "loading_order": 100,
   "js": "index.js",
   "css": "style.css",
-  "author": "Moss Milk Rat",
+  "author": "MossMilkRat",
   "version": "0.1.0",
   "minimum_client_version": "1.0.0"
 }
