@@ -1,9 +1,11 @@
 // index.js
 
 // Acquire SillyTavern context
-const ctx = (typeof window !== "undefined" && window.SillyTavern && typeof window.SillyTavern.getContext === "function")
-  ? window.SillyTavern.getContext()
-  : null;
+const ctx = (typeof window !== "undefined"
+             && window.SillyTavern
+             && typeof window.SillyTavern.getContext === "function")
+            ? window.SillyTavern.getContext()
+            : null;
 
 if (!ctx) {
   console.error("Story Timeline Viewer: Failed to get SillyTavern context (getContext returned null)");
@@ -20,8 +22,8 @@ if (!ctx) {
         dragDropEnabled: false,
         showMenuIcon: true,
         menuIcon: "🕓",
-        shortcut: "",                 // optional keyboard shortcut (empty by default)
-        slashCommand: "storytimeline" // default slash command name
+        shortcut: "",                  // optional keyboard shortcut
+        slashCommand: "storytimeline"  // default slash command
       };
     }
     return extensionSettings[MODULE_KEY];
@@ -35,7 +37,7 @@ if (!ctx) {
       const min = parseInt(mDay[3], 10);
       return dayNum * 24 * 60 + h * 60 + min;
     }
-    // Additional parsing logic could go here
+    // Additional parsing logic can be added here
     return null;
   }
 
@@ -66,7 +68,7 @@ if (!ctx) {
         timeline.push({ idx, storyTime: st, excerpt: msg.message });
       }
     });
-    timeline.sort((a, b) => {
+    timeline.sort((a,b) => {
       if (a.storyTime < b.storyTime) return -1;
       if (a.storyTime > b.storyTime) return +1;
       return a.idx - b.idx;
@@ -86,7 +88,6 @@ if (!ctx) {
     });
 
     let dragSrcEl = null;
-
     function handleDragStart(e) {
       dragSrcEl = this;
       e.dataTransfer.effectAllowed = 'move';
@@ -135,7 +136,6 @@ if (!ctx) {
     const timeline = buildTimeline();
     const old = document.getElementById('story-timeline-panel');
     if (old) old.remove();
-
     const container = document.createElement('div');
     container.id = 'story-timeline-panel';
     container.className = 'story-timeline';
@@ -145,7 +145,7 @@ if (!ctx) {
     container.appendChild(title);
 
     const list = makeDraggableList(timeline, newOrder => {
-      newOrder.forEach((msgIdx, newPos) => {
+      newOrder.forEach((msgIdx,newPos) => {
         const msg = ctx.chat[msgIdx];
         if (!msg.metadata) msg.metadata = {};
         msg.metadata.storyOrder = newPos;
@@ -161,7 +161,6 @@ if (!ctx) {
   function showSimpleTimeline() {
     const old = document.getElementById('story-timeline-panel');
     if (old) old.remove();
-
     const container = document.createElement('div');
     container.id = 'story-timeline-panel';
     container.className = 'story-timeline';
@@ -191,7 +190,6 @@ if (!ctx) {
       console.log("Story Timeline Viewer: No un-tagged messages found");
       return;
     }
-
     const containerId = "story-timeline-tagger";
     let container = document.getElementById(containerId);
     if (container) container.remove();
@@ -302,6 +300,7 @@ if (!ctx) {
   }
 
   function manualMenuFallback() {
+    console.log("Story Timeline Viewer: manualMenuFallback waiting for menu list container");
     const checkDOM = setInterval(() => {
       const menuList = document.querySelector('.extension-menu-list');
       if (menuList) {
@@ -321,9 +320,9 @@ if (!ctx) {
   function registerSlashCommand() {
     try {
       const settings = getSettings();
-      const cmdName = settings.slashCommand;
+      const cmdName = (settings.slashCommand || "").trim();
       if (!cmdName) {
-        console.warn("Story Timeline Viewer: slashCommand setting is empty");
+        console.warn("Story Timeline Viewer: slashCommand setting is empty — please set it in settings panel.");
         return;
       }
 
@@ -342,7 +341,6 @@ if (!ctx) {
         );
         console.log(`Story Timeline Viewer: slash command '/${cmdName}' registered (new API)`);
       } else if (typeof ctx.registerSlashCommand === "function") {
-        // legacy fallback
         ctx.registerSlashCommand(cmdName, () => {
           showSettingsPanel();
           return `Story Timeline Viewer settings opened.`;
@@ -352,7 +350,7 @@ if (!ctx) {
         console.warn("Story Timeline Viewer: slash command registration failed — no supported API found");
       }
     } catch (err) {
-      console.error("Story Timeline Viewer: failed to register slash command", err);
+      console.error("Story Timeline Viewer: error during slash command registration", err);
     }
   }
 
