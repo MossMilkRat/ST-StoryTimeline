@@ -29,11 +29,17 @@
         
         await loadSettings();
         
+        // Add to extensions menu
+        addExtensionsMenuButton();
+        
         // Add View Timeline button to World Info interface
         addTimelineButton();
         
         // Create timeline viewer modal
         createTimelineViewer();
+        
+        // Create settings UI
+        createSettingsUI();
         
         // Observe DOM for lorebook entry editor to add toggle button
         observeLorebookEditor();
@@ -42,6 +48,37 @@
         registerSlashCommand();
         
         console.log('StoryTimelines: Extension initialized');
+    }
+    
+    /**
+     * Add button to extensions menu
+     */
+    function addExtensionsMenuButton() {
+        const extensionsMenu = document.getElementById('extensionsMenu');
+        if (!extensionsMenu) {
+            setTimeout(addExtensionsMenuButton, 500);
+            return;
+        }
+        
+        if (document.getElementById('storytimeline-ext-button')) {
+            return; // Already added
+        }
+        
+        const button = document.createElement('div');
+        button.id = 'storytimeline-ext-button';
+        button.className = 'list-group-item flex-container flexGap5';
+        button.title = 'Story Timeline';
+        button.style.cursor = 'pointer';
+        
+        button.innerHTML = `
+            <div class="fa-solid fa-clock extensionsMenuExtensionButton"></div>
+            Story Timeline
+        `;
+        
+        button.addEventListener('click', showTimelineViewer);
+        extensionsMenu.appendChild(button);
+        
+        console.log('StoryTimelines: Added to extensions menu');
     }
     
     /**
@@ -244,8 +281,7 @@
         // Insert after the toggle button
         toggleBtn.after(fieldContainer);
         
-        // Get current entry data
-        const entryUid = getCurrentEntryUid(container);
+        // Load existing data if available
         if (entryUid) {
             loadEntryTimelineData(fieldContainer, entryUid);
         }
@@ -289,24 +325,25 @@
     /**
      * Get current entry UID from the editor
      */
-    function getCurrentEntryUid(container) {
+    function getCurrentEntryUid(entryForm) {
         // Try multiple ways to get the entry UID
-        const uidInput = container.querySelector('input[name="uid"], [data-uid]');
+        const uidInput = entryForm.querySelector('input[name="uid"], [data-uid]');
         if (uidInput) {
             return uidInput.value || uidInput.dataset.uid;
         }
         
-        // Check if container itself has data-uid
-        if (container.dataset?.uid) {
-            return container.dataset.uid;
+        // Check if form itself has data-uid
+        if (entryForm.dataset?.uid) {
+            return entryForm.dataset.uid;
         }
         
-        // Try to find it in the entry's data
-        const entryElement = container.closest('.world_entry');
-        if (entryElement?.dataset?.uid) {
-            return entryElement.dataset.uid;
+        // Try to find it in parent world_entry
+        const worldEntry = entryForm.closest('.world_entry');
+        if (worldEntry?.dataset?.uid) {
+            return worldEntry.dataset.uid;
         }
         
+        console.warn('StoryTimelines: Could not find entry UID');
         return null;
     }
     
@@ -445,8 +482,99 @@
     }
     
     /**
-     * Create timeline viewer modal
+     * Create settings UI
      */
+    function createSettingsUI() {
+        const settingsHTML = `
+            <div class="storytimeline-settings">
+                <div class="inline-drawer">
+                    <div class="inline-drawer-toggle inline-drawer-header">
+                        <b>Story Timeline Settings</b>
+                        <div class="inline-drawer-icon fa-solid fa-circle-chevron-down down"></div>
+                    </div>
+                    <div class="inline-drawer-content">
+                        <div style="padding: 10px;">
+                            <h4 style="margin-bottom: 10px;">Display Options</h4>
+                            
+                            <label class="checkbox_label" style="display: flex; align-items: center; margin-bottom: 10px;">
+                                <input type="checkbox" id="storytimeline-setting-12hour" ${settings.dateTimeFormat === '12hour' ? 'checked' : ''}>
+                                <span>Use 12-hour time format (AM/PM)</span>
+                            </label>
+                            
+                            <div style="margin-bottom: 15px;">
+                                <label for="storytimeline-setting-default-view" style="display: block; margin-bottom: 5px;">
+                                    <b>Default Timeline View:</b>
+                                </label>
+                                <select id="storytimeline-setting-default-view" class="text_pole" style="width: 100%;">
+                                    <option value="all" ${settings.defaultView === 'all' ? 'selected' : ''}>All Events</option>
+                                    <option value="year" ${settings.defaultView === 'year' ? 'selected' : ''}>By Year</option>
+                                    <option value="month" ${settings.defaultView === 'month' ? 'selected' : ''}>By Month</option>
+                                    <option value="week" ${settings.defaultView === 'week' ? 'selected' : ''}>By Week</option>
+                                    <option value="day" ${settings.defaultView === 'day' ? 'selected' : ''}>By Day</option>
+                                </select>
+                            </div>
+                            
+                            <h4 style="margin: 20px 0 10px 0;">Quick Access</h4>
+                            <p style="font-size: 0.9em; color: var(--grey70); margin-bottom: 10px;">
+                                Access the timeline viewer from:
+                            </p>
+                            <ul style="font-size: 0.9em; color: var(--grey70); margin-left: 20px; margin-bottom: 10px;">
+                                <li>Extensions menu (left sidebar)</li>
+                                <li>World Info "Timeline" button</li>
+                                <li>Slash command: <code>/timeline</code></li>
+                            </ul>
+                            
+                            <div style="margin-top: 20px; padding-top: 15px; border-top: 1px solid var(--SmartThemeBorderColor);">
+                                <button id="storytimeline-open-viewer" class="menu_button">
+                                    <i class="fa-solid fa-clock"></i> Open Timeline Viewer
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        // Wait for extension settings panel to be available
+        const waitForSettings = setInterval(() => {
+            const extensionSettings = document.getElementById('extensions_settings');
+            if (extensionSettings && !document.querySelector('.storytimeline-settings')) {
+                extensionSettings.insertAdjacentHTML('beforeend', settingsHTML);
+                
+                // Add event listeners
+                document.getElementById('storytimeline-setting-12hour').addEventListener('change', (e) => {
+                    settings.dateTimeFormat = e.target.checked ? '12hour' : '24hour';
+                    saveSettings();
+                });
+                
+                document.getElementById('storytimeline-setting-default-view').addEventListener('change', (e) => {
+                    settings.defaultView = e.target.value;
+                    saveSettings();
+                });
+                
+                document.getElementById('storytimeline-open-viewer').addEventListener('click', () => {
+                    showTimelineViewer();
+                });
+                
+                // Make the drawer collapsible
+                const drawerToggle = extensionSettings.querySelector('.storytimeline-settings .inline-drawer-toggle');
+                const drawerContent = extensionSettings.querySelector('.storytimeline-settings .inline-drawer-content');
+                const drawerIcon = extensionSettings.querySelector('.storytimeline-settings .inline-drawer-icon');
+                
+                drawerToggle.addEventListener('click', () => {
+                    const isOpen = drawerContent.style.display !== 'none';
+                    drawerContent.style.display = isOpen ? 'none' : 'block';
+                    drawerIcon.classList.toggle('up', !isOpen);
+                    drawerIcon.classList.toggle('down', isOpen);
+                });
+                
+                console.log('StoryTimelines: Settings UI added');
+                clearInterval(waitForSettings);
+            }
+        }, 500);
+        
+        setTimeout(() => clearInterval(waitForSettings), 10000);
+    }
     function createTimelineViewer() {
         const viewerHtml = `
             <div id="storytimeline-viewer" style="display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); 
