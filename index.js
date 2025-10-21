@@ -636,7 +636,13 @@
      * Show timeline viewer
      */
     async function showTimelineViewer() {
+        console.log('StoryTimelines: Opening timeline viewer');
         const viewer = document.getElementById('storytimeline-viewer');
+        if (!viewer) {
+            console.error('StoryTimelines: Viewer element not found');
+            return;
+        }
+        
         viewer.style.display = 'flex';
         
         document.getElementById('storytimeline-view-select').value = settings.defaultView;
