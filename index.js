@@ -35,7 +35,7 @@
         // Create timeline viewer modal
         createTimelineViewer();
         
-        // Observe DOM for lorebook entry editor
+        // Observe DOM for lorebook entry editor to add toggle button
         observeLorebookEditor();
         
         // Register slash command
@@ -188,17 +188,31 @@
         const entryForm = container.querySelector('.world_entry_form_horizontal') || 
                          container.querySelector('.world_entry_form');
         
-        if (!entryForm || entryForm.querySelector('.storytimeline-fields')) {
-            return; // Already injected or not found
+        if (!entryForm) {
+            console.warn('StoryTimelines: Could not find entry form');
+            return;
+        }
+        
+        // Check if fields already exist
+        if (entryForm.querySelector('.storytimeline-fields')) {
+            console.log('StoryTimelines: Fields already exist');
+            return;
         }
         
         console.log('StoryTimelines: Injecting fields into entry editor');
+        
+        // Find the toggle button to insert after it
+        const toggleBtn = entryForm.querySelector('.storytimeline-toggle-btn');
+        if (!toggleBtn) {
+            console.warn('StoryTimelines: Toggle button not found');
+            return;
+        }
         
         // Create container for our fields
         const fieldContainer = document.createElement('div');
         fieldContainer.className = 'storytimeline-fields';
         fieldContainer.style.cssText = `
-            display: flex;
+            display: block;
             flex-direction: column;
             gap: 10px;
             padding: 10px;
@@ -228,21 +242,14 @@
                 <span>Date Only (no specific time)</span>
             </label>
             <div style="display: flex; gap: 5px;">
-                <button class="menu_button storytimeline-clear" style="flex: 1;">
+                <button type="button" class="menu_button storytimeline-clear" style="flex: 1;">
                     <i class="fa-solid fa-times"></i> Clear Timeline Data
                 </button>
             </div>
         `;
         
-        // Find a good place to insert (after content field or at the end)
-        const contentField = entryForm.querySelector('textarea[name="content"], .world_entry_content');
-        const insertPoint = contentField?.parentElement?.parentElement || entryForm;
-        
-        if (insertPoint.lastElementChild) {
-            insertPoint.lastElementChild.after(fieldContainer);
-        } else {
-            insertPoint.appendChild(fieldContainer);
-        }
+        // Insert after the toggle button
+        toggleBtn.after(fieldContainer);
         
         // Get current entry data
         const entryUid = getCurrentEntryUid(container);
@@ -274,7 +281,8 @@
         });
         
         // Clear button
-        clearBtn.addEventListener('click', () => {
+        clearBtn.addEventListener('click', (e) => {
+            e.preventDefault();
             dateInput.value = '';
             timeInput.value = '';
             dateOnlyCheck.checked = false;
