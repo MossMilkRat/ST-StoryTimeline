@@ -147,12 +147,28 @@
         // Use a more targeted approach - wait for the specific world info popup
         const checkForEntries = setInterval(() => {
             // Look for world entry forms that don't have our button yet
-            const entryForms = document.querySelectorAll('.world_entry_form_horizontal, .world_entry_form');
+            const entryForms = document.querySelectorAll('.world_entry_form_horizontal:not(.storytimeline-processed), .world_entry_form:not(.storytimeline-processed)');
+            
+            if (entryForms.length === 0) return;
             
             entryForms.forEach(form => {
-                if (!form.querySelector('.storytimeline-toggle-btn')) {
-                    addTimelineButtonToEntry(form);
+                // Only process visible forms in actual world info editors
+                if (form.offsetParent === null) return;
+                
+                // Check if this is in a world info context
+                const isInWorldInfo = form.closest('#world_popup, .world_entry, #rm_print_characters_block');
+                if (!isInWorldInfo) return;
+                
+                // Check if button already exists
+                if (form.querySelector('.storytimeline-toggle-btn')) {
+                    form.classList.add('storytimeline-processed');
+                    return;
                 }
+                
+                // Add button
+                console.log('StoryTimelines: Found new entry form, adding button');
+                addTimelineButtonToEntry(form);
+                form.classList.add('storytimeline-processed');
             });
         }, 1000); // Check every second
         
