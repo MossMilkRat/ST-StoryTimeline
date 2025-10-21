@@ -643,7 +643,8 @@
             return;
         }
         
-        viewer.style.display = 'flex';
+        viewer.classList.remove('storytimeline-viewer-hidden');
+        viewer.classList.add('storytimeline-viewer-visible');
         
         document.getElementById('storytimeline-view-select').value = settings.defaultView;
         
@@ -654,7 +655,12 @@
      * Hide timeline viewer
      */
     function hideTimelineViewer() {
-        document.getElementById('storytimeline-viewer').style.display = 'none';
+        console.log('StoryTimelines: Closing timeline viewer');
+        const viewer = document.getElementById('storytimeline-viewer');
+        if (viewer) {
+            viewer.classList.add('storytimeline-viewer-hidden');
+            viewer.classList.remove('storytimeline-viewer-visible');
+        }
     }
     
     /**
