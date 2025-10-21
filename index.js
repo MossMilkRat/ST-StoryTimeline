@@ -107,40 +107,32 @@
     function observeLorebookEditor() {
         if (observerInitialized) return;
         
-        const observer = new MutationObserver((mutations) => {
-            mutations.forEach((mutation) => {
-                mutation.addedNodes.forEach((node) => {
-                    if (node.nodeType === 1) {
-                        // Check if this is a lorebook entry editor
-                        if (node.classList?.contains('world_entry') || 
-                            node.querySelector?.('.world_entry_form, #world_popup_entries_list')) {
-                            // Add the timeline button to the entry instead of auto-injecting
-                            setTimeout(() => addTimelineButtonToEntry(node), 100);
-                        }
-                    }
-                });
+        // Use a more targeted approach - wait for the specific world info popup
+        const checkForEntries = setInterval(() => {
+            // Look for world entry forms that don't have our button yet
+            const entryForms = document.querySelectorAll('.world_entry_form_horizontal, .world_entry_form');
+            
+            entryForms.forEach(form => {
+                if (!form.querySelector('.storytimeline-toggle-btn')) {
+                    addTimelineButtonToEntry(form);
+                }
             });
-        });
+        }, 1000); // Check every second
         
-        observer.observe(document.body, {
-            childList: true,
-            subtree: true
-        });
+        // Store the interval so we can clear it if needed
+        window.storytimelinesCheckInterval = checkForEntries;
         
         observerInitialized = true;
-        console.log('StoryTimelines: Observer initialized');
+        console.log('StoryTimelines: Polling for lorebook entries');
     }
     
     /**
      * Add timeline button to entry editor (instead of auto-injecting fields)
      */
-    function addTimelineButtonToEntry(container) {
-        // Find the entry editor form
-        const entryForm = container.querySelector('.world_entry_form_horizontal') || 
-                         container.querySelector('.world_entry_form');
-        
+    function addTimelineButtonToEntry(entryForm) {
+        // entryForm is now passed directly, should be the form element
         if (!entryForm || entryForm.querySelector('.storytimeline-toggle-btn')) {
-            return; // Already added or not found
+            return; // Not found or already added
         }
         
         console.log('StoryTimelines: Adding toggle button to entry editor');
@@ -149,47 +141,46 @@
         const toggleBtn = document.createElement('button');
         toggleBtn.className = 'menu_button storytimeline-toggle-btn';
         toggleBtn.type = 'button';
-        toggleBtn.innerHTML = '<i class="fa-solid fa-clock"></i> Story Timeline';
+        toggleBtn.innerHTML = '<i class="fa-solid fa-clock"></i> Add Story Timeline';
         toggleBtn.title = 'Add/Edit Story Timeline';
-        toggleBtn.style.cssText = 'margin: 10px 0;';
+        toggleBtn.style.cssText = 'margin: 10px 5px;';
         
-        toggleBtn.addEventListener('click', () => {
+        toggleBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            
+            console.log('StoryTimelines: Button clicked');
+            
             // Check if fields already exist
             const existingFields = entryForm.querySelector('.storytimeline-fields');
             if (existingFields) {
                 // Toggle visibility
-                existingFields.style.display = existingFields.style.display === 'none' ? 'block' : 'none';
-                toggleBtn.innerHTML = existingFields.style.display === 'none' 
-                    ? '<i class="fa-solid fa-clock"></i> Story Timeline'
-                    : '<i class="fa-solid fa-clock"></i> Hide Timeline';
+                if (existingFields.style.display === 'none') {
+                    existingFields.style.display = 'block';
+                    toggleBtn.innerHTML = '<i class="fa-solid fa-clock"></i> Hide Timeline';
+                } else {
+                    existingFields.style.display = 'none';
+                    toggleBtn.innerHTML = '<i class="fa-solid fa-clock"></i> Add Story Timeline';
+                }
             } else {
                 // Inject fields for the first time
-                injectDateTimeFields(container);
+                console.log('StoryTimelines: Injecting fields');
+                injectDateTimeFields(entryForm);
                 toggleBtn.innerHTML = '<i class="fa-solid fa-clock"></i> Hide Timeline';
             }
         });
         
-        // Find a good place to insert the button
-        const contentField = entryForm.querySelector('textarea[name="content"], .world_entry_content');
-        const insertPoint = contentField?.parentElement?.parentElement || entryForm;
-        
-        if (insertPoint.lastElementChild) {
-            insertPoint.lastElementChild.after(toggleBtn);
-        } else {
-            insertPoint.appendChild(toggleBtn);
-        }
+        // Find the best place to add the button - at the bottom of the form
+        entryForm.appendChild(toggleBtn);
     }
     
     /**
      * Inject date/time fields into lorebook entry editor
      */
-    function injectDateTimeFields(container) {
-        // Find the entry editor form
-        const entryForm = container.querySelector('.world_entry_form_horizontal') || 
-                         container.querySelector('.world_entry_form');
-        
+    function injectDateTimeFields(entryForm) {
+        // entryForm is now passed directly
         if (!entryForm) {
-            console.warn('StoryTimelines: Could not find entry form');
+            console.warn('StoryTimelines: No entry form provided');
             return;
         }
         
@@ -199,7 +190,7 @@
             return;
         }
         
-        console.log('StoryTimelines: Injecting fields into entry editor');
+        console.log('StoryTimelines: Creating fields');
         
         // Find the toggle button to insert after it
         const toggleBtn = entryForm.querySelector('.storytimeline-toggle-btn');
@@ -208,14 +199,16 @@
             return;
         }
         
+        // Get entry UID before creating fields
+        const entryUid = getCurrentEntryUid(entryForm);
+        console.log('StoryTimelines: Entry UID:', entryUid);
+        
         // Create container for our fields
         const fieldContainer = document.createElement('div');
         fieldContainer.className = 'storytimeline-fields';
         fieldContainer.style.cssText = `
             display: block;
-            flex-direction: column;
-            gap: 10px;
-            padding: 10px;
+            padding: 15px;
             margin: 10px 0;
             background: var(--black30a);
             border-radius: 5px;
