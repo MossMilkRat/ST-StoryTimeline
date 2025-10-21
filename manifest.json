@@ -4,7 +4,7 @@
   "js": "index.js",
   "css": "style.css",
   "author": "MossMilkRat",
-  "version": "0.2.2",
+  "version": "0.2.1",
   "minimum_client_version": "1.0.0",
   "description": "Timeline view for story events in chats — with slash command support and drag/drop reorder."
 }
