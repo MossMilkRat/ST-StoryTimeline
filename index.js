@@ -25,9 +25,10 @@
      * Initialize the extension
      */
     async function init() {
-        console.log('StoryTimelines: Initializing extension');
+        console.log('StoryTimelines: ===== STARTING INITIALIZATION =====');
         
         await loadSettings();
+        console.log('StoryTimelines: Settings loaded');
         
         // Add to extensions menu
         addExtensionsMenuButton();
@@ -35,7 +36,7 @@
         // Add View Timeline button to World Info interface
         addTimelineButton();
         
-        // Create timeline viewer modal
+        // Create timeline viewer modal (HIDDEN by default)
         createTimelineViewer();
         
         // Create settings UI
@@ -47,7 +48,23 @@
         // Register slash command
         registerSlashCommand();
         
-        console.log('StoryTimelines: Extension initialized');
+        // Double-check viewer is hidden
+        setTimeout(() => {
+            const viewer = document.getElementById('storytimeline-viewer');
+            if (viewer) {
+                const isVisible = viewer.classList.contains('storytimeline-viewer-visible') || 
+                                 window.getComputedStyle(viewer).display !== 'none';
+                if (isVisible) {
+                    console.error('StoryTimelines: VIEWER IS VISIBLE ON INIT - FORCING HIDE');
+                    viewer.classList.add('storytimeline-viewer-hidden');
+                    viewer.classList.remove('storytimeline-viewer-visible');
+                } else {
+                    console.log('StoryTimelines: Viewer confirmed hidden');
+                }
+            }
+        }, 500);
+        
+        console.log('StoryTimelines: ===== INITIALIZATION COMPLETE =====');
     }
     
     /**
@@ -655,11 +672,16 @@
      * Hide timeline viewer
      */
     function hideTimelineViewer() {
-        console.log('StoryTimelines: Closing timeline viewer');
+        console.log('StoryTimelines: *** HIDE FUNCTION CALLED ***');
         const viewer = document.getElementById('storytimeline-viewer');
         if (viewer) {
+            console.log('StoryTimelines: Viewer element found, hiding...');
             viewer.classList.add('storytimeline-viewer-hidden');
             viewer.classList.remove('storytimeline-viewer-visible');
+            viewer.style.display = 'none'; // Force it
+            console.log('StoryTimelines: Viewer should now be hidden');
+        } else {
+            console.error('StoryTimelines: Viewer element NOT FOUND');
         }
     }
     
