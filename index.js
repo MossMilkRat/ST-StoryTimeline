@@ -689,6 +689,9 @@
      * Refresh timeline viewer
      */
     async function refreshTimelineViewer() {
+        console.log('StoryTimelines: *** REFRESH TIMELINE VIEWER CALLED ***');
+        console.trace('StoryTimelines: Refresh called from:');
+        
         const content = document.getElementById('storytimeline-viewer-content');
         content.innerHTML = '<div style="text-align: center; padding: 40px;"><i class="fa-solid fa-spinner fa-spin"></i> Loading...</div>';
         
